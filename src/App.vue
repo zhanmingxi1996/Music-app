@@ -1,15 +1,15 @@
 <template>
   <div id="app">
-    <test></test>
+    <m-header></m-header>
   </div>
 </template>
 
 <script>
-import test from './components/test'
+import MHeader from 'components/m-header/m-header'
 
 export default {
   components: {
-    test
+    MHeader
   }
 }
 </script>
