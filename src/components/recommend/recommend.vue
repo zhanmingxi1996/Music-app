@@ -1,9 +1,22 @@
 <template>
-  <div>recommend</div>
+  <div>recommend。</div>
 </template>
 
 <script type="text/ecmascript-6">
-  export default {};
+  import { getRecommend } from 'api/recommend'
+
+  export default {
+    created() {
+      this._getRecommend()
+    },
+    methods: {
+      _getRecommend() {
+        getRecommend().then((res) => {
+          console.log(res)
+        })
+      }
+    }
+  };
 </script>
 
 <style lang="stylus" rel="stylesheet/stylus">
