@@ -1,10 +1,7 @@
 <template>
-  <div class="m-header">
+  <div class="m-header border-1px">
     <div class="icon"></div>
     <h1 class="text">Max Music</h1>
-    <router-link tag="div" class="mine" to="/user">
-      <i class="icon-mine"></i>
-    </router-link>
   </div>
 </template>
 
@@ -22,6 +19,7 @@
     text-align: center
     color: $color-theme
     font-size: 0
+    border-1px(rgba(7, 17, 27, 0.2))
     .icon
       display: inline-block
       vertical-align: top
