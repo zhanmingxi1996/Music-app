@@ -78,7 +78,7 @@
           height: 65px
           line-height: 65px
           text-align: center
-          font-size: $font-size-medium
+          font-size: 15px
           color: $color-theme
         .item
           display: flex

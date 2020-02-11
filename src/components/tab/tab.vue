@@ -27,7 +27,7 @@
     display: flex
     height: 44px
     line-height: 44px
-    font-size: $font-size-medium
+    font-size: 15px
     background: rgba(130, 130, 130, 0.1)
     border-1px(rgba(7, 17, 27, 0.3))
     .tab-item
