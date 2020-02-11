@@ -172,10 +172,10 @@
           display: block
           width: 100%
     .dots
-      position: absolute
+      position: relative
       right: 0
       left: 0
-      bottom: 12px
+      bottom: 15px
       transform: translateZ(1px)
       text-align: center
       font-size: 0
@@ -185,9 +185,9 @@
         width: 8px
         height: 8px
         border-radius: 50%
-        background: #bbb
+        background: #ddd
         &.active
           width: 20px
           border-radius: 5px
-          background: #fff
+          background: $color-theme
 </style>

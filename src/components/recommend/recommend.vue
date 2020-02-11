@@ -52,6 +52,7 @@
 
 <style scoped lang="stylus" rel="stylesheet/stylus">
   @import "~common/stylus/variable"
+  @import "~common/stylus/mixin"
 
   .recommend
     position: fixed
@@ -75,11 +76,12 @@
           height: 100%
       .recommend-list
         .list-title
-          height: 65px
-          line-height: 65px
+          height: 45px
+          line-height: 45px
           text-align: center
           font-size: 15px
           color: $color-theme
+          border-1px(rgba(7, 17, 27, 0.3))
         .item
           display: flex
           box-sizing: border-box
