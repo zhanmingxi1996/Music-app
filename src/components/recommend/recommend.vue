@@ -68,7 +68,11 @@
           }
         })
       },
+<<<<<<< HEAD
       loadImage () {
+=======
+      loadImage() {
+>>>>>>> 4-4.Scroll
         if (!this.checkloaded) {
           this.checkloaded = true
           setTimeout(() => {
