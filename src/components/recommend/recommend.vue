@@ -1,39 +1,57 @@
 <template>
   <div class="recommend" ref="recommend">
-    <div class="recommend-content">
-      <div v-if="recommends.length" class="slider-wrapper">
-        <div class="slider-content">
-          <slider ref="slider">
-            <div v-for="(item, index) in recommends" :key="index">
-              <a :href="item.linkUrl">
-                <img :src="item.picUrl">
-              </a>
-            </div>
-          </slider>
+    <scroll class="recommend-content" :scrollBar="true" :data="discList" ref="scroll">
+      <div>
+        <div v-if="recommends.length" class="slider-wrapper">
+          <div class="slider-content">
+            <slider ref="slider">
+              <div v-for="(item, index) in recommends" :key="index">
+                <a :href="item.linkUrl">
+                  <img :src="item.picUrl">
+                </a>
+              </div>
+            </slider>
+          </div>
+        </div>
+        <div class="recommend-list">
+          <h1 class="list-title">热门歌单推荐</h1>
+          <ul>
+            <li @click="selectItem(item)" v-for="(item,index) in discList" class="item" :key="index">
+              <div class="icon">
+                <img width="60" height="60" v-lazy="item.imgurl">
+              </div>
+              <div class="text">
+                <h2 class="name" v-html="item.creator.name"></h2>
+                <p class="desc" v-html="item.dissname"></p>
+              </div>
+            </li>
+          </ul>
         </div>
       </div>
-      <div class="recommend-list">
-        <h1 class="list-title">热门歌单推荐</h1>
-        <ul>
-          
-        </ul>
+      <div class="loading-container" v-show="!discList.length">
+        <loading></loading>
       </div>
-    </div>
+    </scroll>
   </div>
 </template>
 
 <script type="text/ecmascript-6">
-  import { getRecommend } from 'api/recommend'
+  import { getRecommend, getDiscList } from 'api/recommend'
   import Slider from 'base/slider/slider'
+  import Scroll from 'base/scroll/scroll'
+  import Loading from 'base/loading/loading'
 
   export default {
     data() {
       return {
-        recommends: []
+        recommends: [],
+        discList: []
       }
     },
     created() {
       this._getRecommend()
+
+      this._getDiscList()
     },
     methods: {
       _getRecommend () {
@@ -42,10 +60,19 @@
             this.recommends = res.data.slider
           }
         })
+      },
+      _getDiscList() {
+        getDiscList().then((res) => {
+          if (res.code === 0) {
+            this.discList = res.data.list
+          }
+        })
       }
     },
     components: {
-      Slider
+      Slider,
+      Scroll,
+      Loading
     }
   };
 </script>
@@ -76,6 +103,7 @@
           height: 100%
       .recommend-list
         .list-title
+          margin-bottom: 13px
           height: 45px
           line-height: 45px
           text-align: center
@@ -87,6 +115,7 @@
           box-sizing: border-box
           align-items: center
           padding: 0 20px 20px 20px
+          border-70(rgba(7, 17, 27, 0.3))
           .icon
             flex: 0 0 60px
             width: 60px
