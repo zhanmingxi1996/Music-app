@@ -1,5 +1,5 @@
 <template>
-  <div class="tab border-1px">
+  <div class="tab">
     <router-link tag="div" class="tab-item" to="/recommend">
       <span class="tab-link">推荐</span>
     </router-link>
@@ -29,7 +29,6 @@
     line-height: 44px
     font-size: 15px
     background: rgba(130, 130, 130, 0.1)
-    border-1px(rgba(7, 17, 27, 0.3))
     .tab-item
       flex: 1
       text-align: center
@@ -37,6 +36,7 @@
         padding-bottom: 5px
         color: $color-text-ll
       &.router-link-active
+        background: #fff
         .tab-link
           color: $color-theme
           border-bottom: 2px solid $color-theme
