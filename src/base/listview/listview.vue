@@ -21,14 +21,22 @@
         <li v-for="(item, index) in shortcutList" :key="index" :class="{item, current: currentIndex === index}" :data-index="index">{{item}}</li>
       </ul>
     </div>
+    <div class="list-fixed" ref="fixed" v-show="fixedTitle">
+      <div class="fixed-title">{{fixedTitle}}</div>
+    </div>
+    <div v-show="!data.length" class="loading-container">
+      <loading></loading>
+    </div>
   </scroll>
 </template>
 
 <script type="text/ecmascript-6">
   import Scroll from 'base/scroll/scroll'
   import { getData } from 'common/js/dom'
+  import Loading from 'base/loading/loading'
 
   const ANCHOR_HEIGHT = 18
+  const TITLE_HEIGHT = 30
 
   export default {
     data() {
@@ -57,6 +65,12 @@
           shortcutArr.push(item.title.substr(0, 1))
         })
         return shortcutArr
+      },
+      fixedTitle () {
+        if (this.scrollY > 0) {
+          return ''
+        }
+        return this.data[this.currentIndex] ? this.data[this.currentIndex].title : ''
       }
     },
     methods: {
@@ -128,10 +142,19 @@
         }
         // 当滚动到底部，且-newY大于最后一个元素的上限
         this.currentIndex = listHeight.length - 2
+      },
+      diff (newVal) {
+        let fixedTop = (newVal > 0 && newVal < TITLE_HEIGHT) ? newVal - TITLE_HEIGHT : 0
+        if (this.fixedTop === fixedTop) {
+          return
+        }
+        this.fixedTop = fixedTop
+        this.$refs.fixed.style.transform = `translate3d(0,${fixedTop}px,0)`
       }
     },
     components: {
-      Scroll
+      Scroll,
+      Loading
     }
   };
 </script>
@@ -153,7 +176,7 @@
         padding-left: 10px
         font-size: 15px
         color: #111
-        background: #fff
+        background: rgb(249, 234, 234)
         border-left: 10px solid rgba(200, 50, 50, 0.8)
       .list-group-item
         display: flex
@@ -164,7 +187,7 @@
           display: block
           position: absolute
           left: 80px
-          right: 30px
+          right: 40px
           bottom: 10px
           border-top: 1px solid rgba(7, 17, 27, 0.3)
           content: ' '
@@ -206,13 +229,15 @@
       top: 0
       left: 0
       width: 100%
+      z-index: 20
       .fixed-title
         height: 30px
         line-height: 30px
-        padding-left: 20px
-        font-size: $font-size-small
-        color: $color-text-l
-        background: $color-highlight-background
+        padding-left: 10px
+        font-size: 15px
+        color: #111
+        background: rgb(249, 234, 234)
+        border-left: 10px solid rgba(200, 50, 50, 0.8)
     .loading-container
       position: absolute
       width: 100%
