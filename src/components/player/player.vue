@@ -70,6 +70,7 @@
   import {mapGetters, mapMutations} from 'vuex'
   import animations from 'create-keyframe-animation'
   import { prefixStyle } from 'common/js/dom'
+  import Velocity from "velocity-animate";
 
   const transform = prefixStyle('transform')
 
@@ -93,42 +94,54 @@
       enter (el, done) {
         const { x, y, scale } = this._getPosAndScale()
 
-        let animation = {
-          0: {
-            transform: `translate3d(${x}px,${y}px,0) scale(${scale})`
-          },
-          60: {
-            transform: `translate3d(0,0,0) scale(1.1)`
-          },
-          100: {
-            transform: `translate3d(0,0,0) scale(1)`
-          }
-        }
+        Velocity(this.$refs.cdWrapper,{
+          translateX: `${x}px`, // 注意这里的写法“translateX”，是特殊的
+          translateY: `${y}px`, // 这里写“translate3d是不行的，根本没效果
+          scale: `${scale}`
+        },{
+          duration: 0, // 这里写0，是动画的起始位置
+          easing: "linear"
+        }) // 本来动画起始位置是要在beforeEnter钩子规定的，但是这样也可以
 
-        animations.registerAnimation({
-          name: 'move',
-          animation,
-          presets: {
-            duration: 400,
-            easing: 'linear'
-          }
+        Velocity(this.$refs.cdWrapper,{
+          translateX: "0px",
+          translateY: "0px",
+          scale: "1.1"
+        },{
+          duration: 240,
+          easing: "linear",
         })
 
-        animations.runAnimation(this.$refs.cdWrapper, 'move', done)
+        Velocity(this.$refs.cdWrapper,{
+          translateX: "0px",
+          translateY: "0px",
+          scale: "1"
+        },{
+          duration: 160,
+          easing: "linear",
+          complete: () => {
+            done() // 记得在动画的最后调用done回调，才会进入下一个钩子函数
+          }
+        })
       },
       afterEnter () {
-        animations.unregisterAnimation('move')
         this.$refs.cdWrapper.style.animation = ''
+        this.$refs.cdWrapper.style[transform] = ''
       },
       leave (el, done) {
-        this.$refs.cdWrapper.style.transition = 'all 0.4s'
         const { x, y, scale } = this._getPosAndScale()
-        this.$refs.cdWrapper.style[transform] = `translate3d(${x}px,${y}px,0) scale(${scale})`
-        const timer = setTimeout(done, 400)
-        this.$refs.cdWrapper.addEventListener('transitionend', () => {
-          clearTimeout(timer)
-          done()
+        
+        Velocity(this.$refs.cdWrapper, {
+          translateX: `${x}px`,
+          translateY: `${y}px`,
+          scale: `${scale}`
+        },
+        {
+          duration: 400,
+          easing: "linear",
+          complete: done
         })
+
       },
       afterLeave () {
         this.$refs.cdWrapper.style.transition = ''
