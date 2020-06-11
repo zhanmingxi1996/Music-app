@@ -5,6 +5,7 @@
         <div class="content">
           <h2 class="name">{{song.name}}</h2>
           <p class="desc">{{getDesc(song)}}</p>
+          <div class="bottom-line"></div>
         </div>
       </li>
     </ul>
@@ -70,4 +71,7 @@
           no-wrap()
           margin-top: 4px
           color: $color-text-d
+        .bottom-line
+          border-bottom: 1px solid rgba(0,0,0,0.5)
+          padding-bottom: 4px
 </style>
