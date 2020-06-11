@@ -24,7 +24,7 @@
     },
     methods: {
       getDesc(song) {
-        return `${song.singer}路${song.album}`
+        return `${song.singer}--${song.album}`
       }
     }
   };
