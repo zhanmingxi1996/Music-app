@@ -31,15 +31,15 @@
             <div class="icon i-left">
               <i class="icon-sequence"></i>
             </div>
-            <div class="icon i-left">
-              <i class="icon-prev"></i>
+            <div class="icon i-left" :class="disableCls">
+              <i @click="prev" class="icon-prev"></i>
             </div>
-            <div class="icon i-center">
+            <div class="icon i-center" :class="disableCls">
               <i :class="playIcon" 
                  @click="togglePlaying"></i>
             </div>
-            <div class="icon i-right">
-              <i class="icon-next"></i>
+            <div class="icon i-right" :class="disableCls">
+              <i @click="next" class="icon-next"></i>
             </div>
             <div class="icon i-right">
               <i class="icon icon-not-favorite"></i>
@@ -67,7 +67,7 @@
         </div>
       </div>
     </transition>
-    <audio ref="audio" :src="currentSong.url"></audio>
+    <audio ref="audio" :src="currentSong.url" @canplay="ready" @error="error"></audio>
   </div>
 </template>
 
@@ -81,6 +81,11 @@
   const transform = prefixStyle('transform')
 
   export default {
+    data() {
+      return {
+        songReady: false
+      }
+    },
     computed: {
       playIcon () {
         return this.playing ? 'icon-pause' : 'icon-play'
@@ -90,6 +95,9 @@
       },
       cdCls() {
         return this.playing ? 'play' : 'play pause'
+      },
+      disableCls () {
+        return this.songReady ? '' : 'disable'
       },
       ...mapGetters([
         'currentIndex',
@@ -113,11 +121,45 @@
       }
     },
     methods: {
-      back() {
+      back() { // 控制播放器收起
         this.setFullScreen(false)
       },
-      open() {
+      open() { // 控制播放器全面打开
         this.setFullScreen(true)
+      },
+      next() {
+        if (!this.songReady) {
+          return
+        } // 歌曲还没有准备好的时候，就return掉
+        let index = this.currentIndex + 1
+        if (index === this.playlist.length) { // 当是最后一首歌的时候
+          index = 0 // 从播放列表第一首，重新开始
+        }
+        this.setCurrentIndex(index) // setCurrentIndex使用mutation提交
+        if (!this.playing) { // 如果播放状态是暂停，我们就切换播放状态
+          this.togglePlaying()
+        }
+        this.songReady = false // 执行完点击，将标志位置为false
+      },
+      prev() {
+        if (!this.songReady) {
+          return
+        } // 歌曲还没有准备好的时候，就return掉
+        let index = this.currentIndex - 1
+        if (index === -1) { // 当是第一首的时候
+          index = this.playlist.length - 1 // 播放最后一首,记得减一
+        }
+        this.setCurrentIndex(index)
+        if (!this.playing) { // 如果播放状态是暂停，我们就切换播放状态
+          this.togglePlaying()
+        }
+        this.songReady = false
+      },
+      ready() { // 歌曲准备完毕，将标志位置为true
+        this.songReady = true
+      },
+      error () {
+        this.songReady = true
       },
       enter (el, done) {
         const { x, y, scale } = this._getPosAndScale()
@@ -194,7 +236,8 @@
       },
       ...mapMutations({
         setFullScreen: 'SET_FULL_SCREEN',
-        setPlayingState: 'SET_PLAYING_STATE'
+        setPlayingState: 'SET_PLAYING_STATE',
+        setCurrentIndex: 'SET_CURRENT_INDEX'
       })
     }
   };
