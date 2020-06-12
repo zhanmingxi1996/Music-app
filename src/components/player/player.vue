@@ -27,6 +27,16 @@
           </div>
         </div>
         <div class="bottom">
+          <div class="progress-wrapper">
+            <span class="time time-l">{{currentTime}}</span>
+            <div class="progress-bar-wrapper">
+              <progress-bar ref="progressBar" :percent="percent"
+                            @percentChange="onProgressBarChange"
+                            @percentChanging="onProgressBarChanging">
+              </progress-bar>
+            </div>
+            <span class="time time-r">{{songDuration}}</span>
+          </div>
           <div class="operators">
             <div class="icon i-left">
               <i class="icon-sequence"></i>
@@ -67,7 +77,12 @@
         </div>
       </div>
     </transition>
-    <audio ref="audio" :src="currentSong.url" @canplay="ready" @error="error"></audio>
+    <audio ref="audio" 
+            :src="currentSong.url" 
+            @canplay="ready" 
+            @error="error"
+            @timeupdate="updateTime">
+    </audio>
   </div>
 </template>
 
@@ -76,14 +91,18 @@
   import {mapGetters, mapMutations} from 'vuex'
   import animations from 'create-keyframe-animation'
   import { prefixStyle } from 'common/js/dom'
-  import Velocity from "velocity-animate";
+  import Velocity from "velocity-animate"
+  import ProgressBar from 'base/progress-bar/progress-bar'
 
   const transform = prefixStyle('transform')
 
   export default {
     data() {
       return {
-        songReady: false
+        songReady: false,
+        currentTime: 0,
+        songDuration: 0,
+        percent: 0
       }
     },
     computed: {
@@ -108,8 +127,12 @@
       ])
     },
     watch: {
+      currentTime() {
+        this.percent = this.$refs.audio.currentTime / this.currentSong.duration
+      },
       currentSong() {
         this.$nextTick(() => {
+          this._getSongDuration()
           this.$refs.audio.play()
         })
       },
@@ -121,6 +144,58 @@
       }
     },
     methods: {
+      onProgressBarChange(percent) {
+        // 根据百分比，计算出要修改到的播放时间
+        const currentTime = this.currentSong.duration * percent
+        // 设置播放时间，在这里真正地改变了歌曲进度
+        this.$refs.audio.currentTime = currentTime
+        // 修改进度条左边的时间显示
+        this.currentTime = currentTime
+        // 即使歌曲正在暂停，也会切换到指定进度开始播放
+        if (!this.playing) {
+          this.togglePlaying()
+        }
+      },
+      onProgressBarChanging(percent) {
+        let time = this.currentSong.duration * percent
+        time = time | 0
+        let minute = time / 60 | 0
+        let second = 0
+        let len = (time % 60).toString().length
+        if (len < 2) {
+          second = '0' + (time % 60)
+        } else {
+          second = (time % 60).toString()
+        }
+        this.currentTime = `${minute}:${second}`
+      },
+      _getSongDuration() {
+        let time = this.currentSong.duration
+        time = time | 0
+        let minute = time / 60 | 0
+        let second = 0
+        let len = (time % 60).toString().length
+        if (len < 2) {
+          second = '0' + (time % 60)
+        } else {
+          second = (time % 60).toString()
+        }
+        this.songDuration = `${minute}:${second}`
+      },
+      updateTime() { // 获取当前播放到的时间，赋值给data中的currentTime
+        let time = this.$refs.audio.currentTime
+        time = time | 0 // 向下取整的技巧性写法
+        let minute = time / 60 | 0 // 获取分钟数
+        // 下面获取秒数，因为秒数为个位数时，要在前面加0
+        let second = 0
+        let len = (time % 60).toString().length
+        if (len < 2) {
+          second = '0' + (time % 60) // 利用字符串和数字相加，自动转换类型
+        } else {
+          second = (time % 60).toString()
+        }
+        this.currentTime = `${minute}:${second}`
+      },
       back() { // 控制播放器收起
         this.setFullScreen(false)
       },
@@ -239,6 +314,9 @@
         setPlayingState: 'SET_PLAYING_STATE',
         setCurrentIndex: 'SET_CURRENT_INDEX'
       })
+    },
+    components: {
+      ProgressBar
     }
   };
 </script>
