@@ -70,7 +70,9 @@
           <p class="desc" v-html="currentSong.singer"></p>
         </div>
         <div class="control">
-          <i @click.stop="togglePlaying" class="icon-mini" :class="miniIcon"></i>
+          <progress-circle :radius="radius" :percent="percent">
+            <i @click.stop="togglePlaying" class="icon-mini" :class="miniIcon"></i>
+          </progress-circle>
         </div>
         <div class="control">
           <i class="icon-playlist"></i>
@@ -93,6 +95,7 @@
   import { prefixStyle } from 'common/js/dom'
   import Velocity from "velocity-animate"
   import ProgressBar from 'base/progress-bar/progress-bar'
+  import ProgressCircle from 'base/progress-circle/progress-circle'
 
   const transform = prefixStyle('transform')
 
@@ -101,6 +104,7 @@
       return {
         songReady: false,
         currentTime: 0,
+        radius: 44,
         songDuration: 0,
         percent: 0
       }
@@ -316,7 +320,8 @@
       })
     },
     components: {
-      ProgressBar
+      ProgressBar,
+      ProgressCircle
     }
   };
 </script>
@@ -557,7 +562,7 @@
           font-size: $font-size-small
           color: #fff
       .control
-        flex: 0 0 30px
+        flex: 0 0 36px
         width: 30px
         padding: 0 10px
         .icon-play-mini, .icon-pause-mini, .icon-playlist
@@ -566,8 +571,8 @@
         .icon-mini
           font-size: 32px
           position: absolute
-          right: 65px
-          top: 14px
+          right: -2px
+          top: 6px
 
   @keyframes rotate
     0%

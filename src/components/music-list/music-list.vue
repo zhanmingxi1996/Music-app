@@ -157,8 +157,8 @@
       text-align: center
       line-height: 40px
       font-size: $font-size-large
-      color: rgba(249, 234, 234, 1)
-      background-color: rgba(240,240,240,0.2)
+      color: rgba(247, 247, 247, 1)
+      background-color: rgba(250,180,180,0.55)
       border-radius: 0 0 12px 12px
     .bg-image
       position: relative
@@ -197,7 +197,7 @@
         left: 0
         width: 100%
         height: 100%
-        background: rgba(7, 17, 27, 0.4)
+        background: rgba(7, 17, 27, 0.5)
     .bg-layer
       position: relative
       height: 100%

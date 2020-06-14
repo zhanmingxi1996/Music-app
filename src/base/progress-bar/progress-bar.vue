@@ -102,6 +102,8 @@
       top: 13px
       height: 4px
       background: rgba(255, 255, 255, 0.4)
+      border: 1px solid rgba(7, 17, 27, 0.1)
+      border-radius: 2px
       .progress
         position: absolute
         height: 100%
