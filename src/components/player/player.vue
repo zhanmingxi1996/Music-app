@@ -38,8 +38,8 @@
             <span class="time time-r">{{songDuration}}</span>
           </div>
           <div class="operators">
-            <div class="icon i-left">
-              <i class="icon-sequence"></i>
+            <div class="icon i-left" @click=changeMode>
+              <i :class="iconMode"></i>
             </div>
             <div class="icon i-left" :class="disableCls">
               <i @click="prev" class="icon-prev"></i>
@@ -96,6 +96,8 @@
   import Velocity from "velocity-animate"
   import ProgressBar from 'base/progress-bar/progress-bar'
   import ProgressCircle from 'base/progress-circle/progress-circle'
+  import { playMode } from '../../common/js/config'
+  import { shuffle } from 'common/js/util'
 
   const transform = prefixStyle('transform')
 
@@ -122,19 +124,27 @@
       disableCls () {
         return this.songReady ? '' : 'disable'
       },
+      iconMode () {
+        return this.mode === playMode.sequence ? 'icon-sequence' : this.mode === playMode.loop ? 'icon-loop' : 'icon-random'
+      },
       ...mapGetters([
         'currentIndex',
         'fullScreen',
         'playing',
         'playlist',
-        'currentSong'
+        'currentSong',
+        'mode',
+        'sequenceList'
       ])
     },
     watch: {
       currentTime() {
         this.percent = this.$refs.audio.currentTime / this.currentSong.duration
       },
-      currentSong() {
+      currentSong(newSong, oldSong) {
+        if (newSong.id === oldSong.id) {
+          return
+        }
         this.$nextTick(() => {
           this._getSongDuration()
           this.$refs.audio.play()
@@ -148,6 +158,24 @@
       }
     },
     methods: {
+      changeMode () {
+        const mode = (this.mode + 1) % 3
+        this.setPlayMode(mode)
+        let list = null
+        if (mode === playMode.random) {
+          list = shuffle(this.sequenceList)
+        } else {
+          list = this.sequenceList //我们没有在任何地方mutation过sequenceList
+        } // 为什么这里可以直接获取呢？因为mode默认是sequence，so第一次点击歌就提交了
+        this.resetCurrentIndex(list)
+        this.setPlaylist(list)
+      },
+      resetCurrentIndex (list) {
+        let index = list.findIndex((item) => {
+          return item.id === this.currentSong.id
+        })
+        this.setCurrentIndex(index)
+      },
       onProgressBarChange(percent) {
         // 根据百分比，计算出要修改到的播放时间
         const currentTime = this.currentSong.duration * percent
@@ -314,6 +342,8 @@
         this.setPlayingState(!this.playing)
       },
       ...mapMutations({
+        setPlayMode: 'SET_PLAY_MODE',
+        setPlaylist: 'SET_PLAYLIST',
         setFullScreen: 'SET_FULL_SCREEN',
         setPlayingState: 'SET_PLAYING_STATE',
         setCurrentIndex: 'SET_CURRENT_INDEX'
