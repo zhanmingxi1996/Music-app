@@ -17,16 +17,39 @@
           <h1 class="title" v-html="currentSong.name"></h1>
           <h2 class="subtitle" v-html="currentSong.singer"></h2>
         </div>
-        <div class="middle">
-          <div class="middle-l">
+        <div class="middle"
+             @touchstart.prevent="middleTouchStart"
+             @touchmove.prevent="middleTouchMove"
+             @touchend.prevent="middleTouchEnd">
+          <div class="middle-l" ref="middleL">
             <div class="cd-wrapper" ref="cdWrapper">
               <div class="cd">
                 <img class="image" :src="currentSong.image" :class="cdCls">
               </div>
             </div>
+            <div class="playing-lyric-wrapper">
+              <div class="playing-lyric">{{playingLyric}}</div>
+            </div>
           </div>
+          <scroll class="middle-r" ref="lyricList" :data="currentLyric && currentLyric.lines">
+            <div class="lyric-wrapper">
+              <div v-if="currentLyric">
+                <p ref="lyricLine" 
+                class="text" 
+                :class="{current: currentLineNum === index}"
+                v-for="(line, index) in currentLyric.lines"
+                :key="index">
+                  {{line.txt}}
+                </p>
+              </div>
+            </div>
+          </scroll>
         </div>
         <div class="bottom">
+          <div class="dot-wrapper">
+            <span class="dot" :class="{active: currentShow === 'cd'}"></span>
+            <span class="dot" :class="{active: currentShow === 'lyric'}"></span>
+          </div>
           <div class="progress-wrapper">
             <span class="time time-l">{{currentTime}}</span>
             <div class="progress-bar-wrapper">
@@ -83,7 +106,9 @@
             :src="currentSong.url" 
             @canplay="ready" 
             @error="error"
-            @timeupdate="updateTime">
+            @timeupdate="updateTime"
+            @ended="end"
+            @pause="paused">
     </audio>
   </div>
 </template>
@@ -98,8 +123,11 @@
   import ProgressCircle from 'base/progress-circle/progress-circle'
   import { playMode } from '../../common/js/config'
   import { shuffle } from 'common/js/util'
+  import Lyric from 'lyric-parser'
+  import Scroll from 'base/scroll/scroll'
 
   const transform = prefixStyle('transform')
+  const transitionDuration = prefixStyle('transitionDuration')
 
   export default {
     data() {
@@ -108,7 +136,11 @@
         currentTime: 0,
         radius: 44,
         songDuration: 0,
-        percent: 0
+        percent: 0,
+        currentLyric: null,
+        currentLineNum: 0,
+        currentShow: 'cd',
+        playingLyric: '',
       }
     },
     computed: {
@@ -137,6 +169,9 @@
         'sequenceList'
       ])
     },
+    created() {
+      this.touch = {}
+    },
     watch: {
       currentTime() {
         this.percent = this.$refs.audio.currentTime / this.currentSong.duration
@@ -145,9 +180,13 @@
         if (newSong.id === oldSong.id) {
           return
         }
+        if (this.currentLyric) {
+          this.currentLyric.stop()
+        }
         this.$nextTick(() => {
           this._getSongDuration()
           this.$refs.audio.play()
+          this.getLyric()
         })
       },
       playing(newPlaying) {
@@ -176,6 +215,94 @@
         })
         this.setCurrentIndex(index)
       },
+      getLyric() {
+        this.currentSong.getLyric().then((lyric) => {
+          this.currentLyric = new Lyric(lyric, this.handleLyric)
+          if(this.playing) {
+            this.currentLyric.play()
+          }
+        }).catch(() => {
+          this.currentLyric = null
+          this.playingLyric = ''
+          this.currentLineNum = 0
+        })
+      },
+      handleLyric({lineNum, txt}) {
+        if (!this.$refs.lyricLine) {
+          return
+        }
+        this.currentLineNum = lineNum
+        if (lineNum > 5) {
+          let lineEl = this.$refs.lyricLine[lineNum - 5]
+          this.$refs.lyricList.scrollToElement(lineEl, 1000)
+        } else {
+          this.$refs.lyricList.scrollTo(0, 0, 1000)
+        }
+        this.playingLyric = txt
+      },
+      middleTouchStart(e) {
+        this.touch.initiated = true
+        // 标志位写法 用来判断是否是一次移动
+        this.touch.moved = false
+        const touch = e.touches[0]
+        this.touch.startX = touch.pageX
+        this.touch.startY = touch.pageY
+      },
+      middleTouchMove(e) {
+        if (!this.touch.initiated) {
+          return
+        }
+        const touch = e.touches[0]
+        const deltaX = touch.pageX - this.touch.startX
+        const deltaY = touch.pageY - this.touch.startY
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+          return
+        } // 判断是否横向移动大于竖向移动，防止滑动歌词的时候，误触发
+        if (!this.touch.moved) {
+          this.touch.moved = true
+        } // 和上面的联动，判断是否为 “一次” 移动
+
+        const left = this.currentShow === 'cd' ? 0 : -window.innerWidth
+
+        const offsetWidth = Math.min(0, Math.max(-window.innerWidth, left + deltaX))
+        this.touch.percent = Math.abs(offsetWidth / window.innerWidth)
+        this.$refs.lyricList.$el.style[transform] = `translate3d(${offsetWidth}px,0,0)`
+        this.$refs.lyricList.$el.style[transitionDuration] = 0
+        this.$refs.middleL.style.opacity = 1 - this.touch.percent
+        this.$refs.middleL.style[transitionDuration] = 0
+      },
+      middleTouchEnd(e) {
+        if (!this.touch.moved) {
+          return
+        }
+        let offsetWidth
+        let opacity
+        if (this.currentShow === 'cd') {
+          if (this.touch.percent > 0.2) {
+            offsetWidth = -window.innerWidth
+            opacity = 0
+            this.currentShow = 'lyric'
+          } else {
+            offsetWidth = 0
+            opacity = 1
+          }
+        } else {
+          if (this.touch.percent < 0.8) {
+            offsetWidth = 0
+            this.currentShow = 'cd'
+            opacity = 1
+          } else {
+            offsetWidth = -window.innerWidth
+            opacity = 0
+          }
+        }
+        const time = 300
+        this.$refs.lyricList.$el.style[transform] = `translate3d(${offsetWidth}px,0,0)`
+        this.$refs.lyricList.$el.style[transitionDuration] = `${time}ms`
+        this.$refs.middleL.style.opacity = opacity
+        this.$refs.middleL.style[transitionDuration] = `${time}ms`
+        this.touch.initiated = false
+      },
       onProgressBarChange(percent) {
         // 根据百分比，计算出要修改到的播放时间
         const currentTime = this.currentSong.duration * percent
@@ -186,6 +313,9 @@
         // 即使歌曲正在暂停，也会切换到指定进度开始播放
         if (!this.playing) {
           this.togglePlaying()
+        }
+        if (this.currentLyric) {
+          this.currentLyric.seek(currentTime * 1000)
         }
       },
       onProgressBarChanging(percent) {
@@ -248,6 +378,22 @@
         }
         this.songReady = false // 执行完点击，将标志位置为false
       },
+      end () {
+        this.currentTime = 0
+        if (this.mode === playMode.loop) {
+          this.loop()
+        } else {
+          this.next()
+        }
+      },
+      loop () {
+        this.$refs.audio.currentTime = 0
+        this.$refs.audio.play()
+        this.setPlayingState(true)
+        if (this.currentLyric) {
+          this.currentLyric.seek(0)
+        }
+      },
       prev() {
         if (!this.songReady) {
           return
@@ -263,7 +409,21 @@
         this.songReady = false
       },
       ready() { // 歌曲准备完毕，将标志位置为true
+        clearTimeout(this.timer)
+        // 监听 playing 这个事件可以确保慢网速或者快速切换歌曲导致的 DOM Exception
         this.songReady = true
+        this.canLyricPlay = true
+        this.savePlayHistory(this.currentSong)
+        // 如果歌曲的播放晚于歌词的出现，播放的时候需要同步歌词
+        if (this.currentLyric && !this.isPureMusic) {
+          this.currentLyric.seek(this.currentTime * 1000)
+        }
+      },
+      paused () {
+        this.setPlayingState(false)
+        if (this.currentLyric) {
+          this.currentLyric.stop()
+        }
       },
       error () {
         this.songReady = true
@@ -339,7 +499,13 @@
         }
       },
       togglePlaying() {
+        if (!this.songReady) {
+          return
+        }
         this.setPlayingState(!this.playing)
+        if (this.currentLyric) {
+          this.currentLyric.togglePlay()
+        }
       },
       ...mapMutations({
         setPlayMode: 'SET_PLAY_MODE',
@@ -351,7 +517,8 @@
     },
     components: {
       ProgressBar,
-      ProgressCircle
+      ProgressCircle,
+      Scroll
     }
   };
 </script>
@@ -376,7 +543,7 @@
         width: 100%
         height: 100%
         z-index: -1
-        opacity: 0.6
+        opacity: 0.4
         filter: blur(20px)
       .top
         position: relative
@@ -405,6 +572,9 @@
           text-align: center
           font-size: $font-size-medium
           color: $color-text
+          margin: 0px 65px
+          padding-bottom: 5px
+          border-bottom: 1px solid rgba(200, 20, 20, 0.3)
       .middle
         position: fixed
         width: 100%
@@ -451,8 +621,8 @@
             .playing-lyric
               height: 20px
               line-height: 20px
-              font-size: $font-size-medium
-              color: $color-text-l
+              font-size: 14px
+              color: rgba(200,10,10,0.8)
         .middle-r
           display: inline-block
           vertical-align: top
@@ -466,10 +636,10 @@
             text-align: center
             .text
               line-height: 32px
-              color: $color-text-l
+              color: rgba(20, 20, 20, 0.9)
               font-size: $font-size-medium
               &.current
-                color: $color-text
+                color: rgba(220, 25, 25, 0.9)
             .pure-music
               padding-top: 50%
               line-height: 32px
@@ -489,11 +659,11 @@
             width: 8px
             height: 8px
             border-radius: 50%
-            background: $color-text-l
+            background: rgba(220, 220, 220, 0.8)
             &.active
               width: 20px
               border-radius: 5px
-              background: $color-text-ll
+              background: rgba(220, 25, 25, 0.6)
         .progress-wrapper
           display: flex
           align-items: center
