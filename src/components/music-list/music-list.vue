@@ -16,7 +16,7 @@
     <div class="bg-layer" ref="layer"></div>
     <scroll @scroll="scroll" :listen-scroll="true" :probe-type="3" :data="songs" class="list" ref="list">
       <div class="song-list-wrapper">
-        <song-list @select="selectItem" :songs="songs"></song-list>
+        <song-list @select="selectItem" :rank="rank" :songs="songs"></song-list>
       </div>
       <div v-show="!songs.length" class="loading-container">
         <loading></loading>
@@ -51,6 +51,10 @@
       title: {
         type: String,
         default: ''
+      },
+      rank: {
+        type: Boolean,
+        default: false
       }
     },
     data() {
@@ -163,7 +167,7 @@
       no-wrap()
       text-align: center
       line-height: 40px
-      font-size: $font-size-large
+      font-size: 16px
       color: rgba(247, 247, 247, 1)
       background-color: rgba(250,180,180,0.55)
       border-radius: 0 0 12px 12px
