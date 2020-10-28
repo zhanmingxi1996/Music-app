@@ -69,16 +69,22 @@
         this.$emit('listScroll')
       },
       selectItem (item) {
+        // 如果点击的是歌手
         if (item.type === TYPE_SINGER) {
           const singer = new Singer({
             id: item.singermid,
             name: item.singername
           })
+          // 带路由参数的跳转，跳转到歌手歌曲列表
           this.$router.push({
             path: `/search/${singer.id}`
           })
+          // 然后通过mutation设置vuex中的singer
           this.setSinger(singer)
         } else {
+          // 如果点击的是歌曲，那么触发insertSong的action
+          // 这个action会触发“插入歌曲”，以及“播放插入歌曲”
+          // 触发“播放插入歌曲”，是因为该action改变了currentSong
           this.insertSong(item)
         }
         this.$emit('select', item)
