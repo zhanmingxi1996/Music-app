@@ -39,12 +39,13 @@
 
   .progress-circle
     position: relative
+    right: 13px
     circle
-      stroke-width: 8px
+      stroke-width: 10px
       transform-origin: center
       &.progress-background
         transform: scale(0.9)
-        stroke: rgba(255,255,255,0.2)
+        stroke: rgba(255,255,255,0.7)
       &.progress-bar
         transform: scale(0.9) rotate(-90deg)
         stroke: $color-theme

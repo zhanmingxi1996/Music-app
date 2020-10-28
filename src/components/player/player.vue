@@ -20,11 +20,12 @@
         <div class="middle"
              @touchstart.prevent="middleTouchStart"
              @touchmove.prevent="middleTouchMove"
-             @touchend.prevent="middleTouchEnd">
+             @touchend="middleTouchEnd"
+        >
           <div class="middle-l" ref="middleL">
             <div class="cd-wrapper" ref="cdWrapper">
-              <div class="cd">
-                <img class="image" :src="currentSong.image" :class="cdCls">
+              <div class="cd" ref="imageWrapper">
+                <img ref="image" :class="cdCls" class="image" :src="currentSong.image">
               </div>
             </div>
             <div class="playing-lyric-wrapper">
@@ -34,48 +35,47 @@
           <scroll class="middle-r" ref="lyricList" :data="currentLyric && currentLyric.lines">
             <div class="lyric-wrapper">
               <div v-if="currentLyric">
-                <p ref="lyricLine" 
-                class="text" 
-                :class="{current: currentLineNum === index}"
-                v-for="(line, index) in currentLyric.lines"
-                :key="index">
-                  {{line.txt}}
-                </p>
+                <p ref="lyricLine"
+                   class="text"
+                   :class="{'current': currentLineNum ===index}"
+                   v-for="(line,index) in currentLyric.lines"
+                   :key="index"
+                >{{line.txt}}</p>
+              </div>
+              <div class="pure-music" v-show="isPureMusic">
+                <p>{{pureMusicLyric}}</p>
               </div>
             </div>
           </scroll>
         </div>
         <div class="bottom">
           <div class="dot-wrapper">
-            <span class="dot" :class="{active: currentShow === 'cd'}"></span>
-            <span class="dot" :class="{active: currentShow === 'lyric'}"></span>
+            <span class="dot" :class="{'active':currentShow==='cd'}"></span>
+            <span class="dot" :class="{'active':currentShow==='lyric'}"></span>
           </div>
           <div class="progress-wrapper">
-            <span class="time time-l">{{currentTime}}</span>
+            <span class="time time-l">{{format(currentTime)}}</span>
             <div class="progress-bar-wrapper">
-              <progress-bar ref="progressBar" :percent="percent"
-                            @percentChange="onProgressBarChange"
-                            @percentChanging="onProgressBarChanging">
-              </progress-bar>
+              <progress-bar ref="progressBar" :percent="percent" @percentChange="onProgressBarChange"
+                            @percentChanging="onProgressBarChanging"></progress-bar>
             </div>
-            <span class="time time-r">{{songDuration}}</span>
+            <span class="time time-r">{{format(currentSong.duration)}}</span>
           </div>
           <div class="operators">
-            <div class="icon i-left" @click=changeMode>
+            <div class="icon i-left" @click="changeMode">
               <i :class="iconMode"></i>
             </div>
             <div class="icon i-left" :class="disableCls">
               <i @click="prev" class="icon-prev"></i>
             </div>
             <div class="icon i-center" :class="disableCls">
-              <i :class="playIcon" 
-                 @click="togglePlaying"></i>
+              <i class="needsclick" @click="togglePlaying" :class="playIcon"></i>
             </div>
             <div class="icon i-right" :class="disableCls">
               <i @click="next" class="icon-next"></i>
             </div>
             <div class="icon i-right">
-              <i class="icon icon-not-favorite"></i>
+              <i @click="toggleFavorite(currentSong)" class="icon" :class="favoriteIcon"></i>
             </div>
           </div>
         </div>
@@ -97,286 +97,133 @@
             <i @click.stop="togglePlaying" class="icon-mini" :class="miniIcon"></i>
           </progress-circle>
         </div>
-        <div class="control">
+        <div class="control" @click.stop="showPlaylist">
           <i class="icon-playlist"></i>
         </div>
       </div>
     </transition>
-    <audio ref="audio" 
-            :src="currentSong.url" 
-            @canplay="ready" 
-            @error="error"
-            @timeupdate="updateTime"
-            @ended="end"
-            @pause="paused">
-    </audio>
+    <playlist ref="playlist"></playlist>
+    <audio ref="audio" @playing="ready" @error="error" @timeupdate="updateTime"
+           @ended="end" @pause="paused"></audio>
   </div>
 </template>
 
-
 <script type="text/ecmascript-6">
-  import {mapGetters, mapMutations, mapActions} from 'vuex'
+  import { mapGetters, mapMutations, mapActions } from 'vuex'
   import animations from 'create-keyframe-animation'
   import { prefixStyle } from 'common/js/dom'
-  import Velocity from "velocity-animate"
   import ProgressBar from 'base/progress-bar/progress-bar'
   import ProgressCircle from 'base/progress-circle/progress-circle'
-  import { playMode } from '../../common/js/config'
-  import { shuffle } from 'common/js/util'
+  import { playMode } from 'common/js/config'
   import Lyric from 'lyric-parser'
   import Scroll from 'base/scroll/scroll'
+  import { playerMixin } from 'common/js/mixin'
+  import Playlist from 'components/playlist/playlist'
 
   const transform = prefixStyle('transform')
   const transitionDuration = prefixStyle('transitionDuration')
 
+  const timeExp = /\[(\d{2}):(\d{2}):(\d{2})]/g
+
   export default {
-    data() {
+    mixins: [playerMixin],
+    data () {
       return {
         songReady: false,
         currentTime: 0,
-        radius: 44,
-        songDuration: 0,
-        percent: 0,
+        radius: 32,
         currentLyric: null,
         currentLineNum: 0,
         currentShow: 'cd',
         playingLyric: '',
+        isPureMusic: false,
+        pureMusicLyric: ''
       }
     },
     computed: {
+      cdCls () {
+        return this.playing ? 'play' : ''
+      },
       playIcon () {
         return this.playing ? 'icon-pause' : 'icon-play'
       },
       miniIcon () {
         return this.playing ? 'icon-pause-mini' : 'icon-play-mini'
       },
-      cdCls() {
-        return this.playing ? 'play' : 'play pause'
-      },
       disableCls () {
         return this.songReady ? '' : 'disable'
       },
-      iconMode () {
-        return this.mode === playMode.sequence ? 'icon-sequence' : this.mode === playMode.loop ? 'icon-loop' : 'icon-random'
+      percent () {
+        return this.currentTime / this.currentSong.duration
       },
       ...mapGetters([
         'currentIndex',
         'fullScreen',
-        'playing',
-        'playlist',
-        'currentSong',
-        'mode',
-        'sequenceList'
+        'playing'
       ])
     },
-    created() {
+    created () {
       this.touch = {}
     },
-    watch: {
-      currentTime() {
-        this.percent = this.$refs.audio.currentTime / this.currentSong.duration
-      },
-      currentSong(newSong, oldSong) {
-        if (newSong.id === oldSong.id) {
-          return
-        }
-        if (this.currentLyric) {
-          this.currentLyric.stop()
-        }
-        this.$nextTick(() => {
-          this._getSongDuration()
-          this.$refs.audio.play()
-          this.getLyric()
-        })
-      },
-      playing(newPlaying) {
-        const audio = this.$refs.audio
-        this.$nextTick(() => {
-          newPlaying? audio.play() : audio.pause()
-        })
-      }
-    },
     methods: {
-      changeMode () {
-        const mode = (this.mode + 1) % 3
-        this.setPlayMode(mode)
-        let list = null
-        if (mode === playMode.random) {
-          list = shuffle(this.sequenceList)
-        } else {
-          list = this.sequenceList //我们没有在任何地方mutation过sequenceList
-        } // 为什么这里可以直接获取呢？因为mode默认是sequence，so第一次点击歌就提交了
-        this.resetCurrentIndex(list)
-        this.setPlaylist(list)
-      },
-      resetCurrentIndex (list) {
-        let index = list.findIndex((item) => {
-          return item.id === this.currentSong.id
-        })
-        this.setCurrentIndex(index)
-      },
-      getLyric() {
-        this.currentSong.getLyric().then((lyric) => {
-          this.currentLyric = new Lyric(lyric, this.handleLyric)
-          if(this.playing) {
-            this.currentLyric.play()
-          }
-        }).catch(() => {
-          this.currentLyric = null
-          this.playingLyric = ''
-          this.currentLineNum = 0
-        })
-      },
-      handleLyric({lineNum, txt}) {
-        if (!this.$refs.lyricLine) {
-          return
-        }
-        this.currentLineNum = lineNum
-        if (lineNum > 5) {
-          let lineEl = this.$refs.lyricLine[lineNum - 5]
-          this.$refs.lyricList.scrollToElement(lineEl, 1000)
-        } else {
-          this.$refs.lyricList.scrollTo(0, 0, 1000)
-        }
-        this.playingLyric = txt
-      },
-      middleTouchStart(e) {
-        this.touch.initiated = true
-        // 标志位写法 用来判断是否是一次移动
-        this.touch.moved = false
-        const touch = e.touches[0]
-        this.touch.startX = touch.pageX
-        this.touch.startY = touch.pageY
-      },
-      middleTouchMove(e) {
-        if (!this.touch.initiated) {
-          return
-        }
-        const touch = e.touches[0]
-        const deltaX = touch.pageX - this.touch.startX
-        const deltaY = touch.pageY - this.touch.startY
-        if (Math.abs(deltaY) > Math.abs(deltaX)) {
-          return
-        } // 判断是否横向移动大于竖向移动，防止滑动歌词的时候，误触发
-        if (!this.touch.moved) {
-          this.touch.moved = true
-        } // 和上面的联动，判断是否为 “一次” 移动
-
-        const left = this.currentShow === 'cd' ? 0 : -window.innerWidth
-
-        const offsetWidth = Math.min(0, Math.max(-window.innerWidth, left + deltaX))
-        this.touch.percent = Math.abs(offsetWidth / window.innerWidth)
-        this.$refs.lyricList.$el.style[transform] = `translate3d(${offsetWidth}px,0,0)`
-        this.$refs.lyricList.$el.style[transitionDuration] = 0
-        this.$refs.middleL.style.opacity = 1 - this.touch.percent
-        this.$refs.middleL.style[transitionDuration] = 0
-      },
-      middleTouchEnd(e) {
-        if (!this.touch.moved) {
-          return
-        }
-        let offsetWidth
-        let opacity
-        if (this.currentShow === 'cd') {
-          if (this.touch.percent > 0.2) {
-            offsetWidth = -window.innerWidth
-            opacity = 0
-            this.currentShow = 'lyric'
-          } else {
-            offsetWidth = 0
-            opacity = 1
-          }
-        } else {
-          if (this.touch.percent < 0.8) {
-            offsetWidth = 0
-            this.currentShow = 'cd'
-            opacity = 1
-          } else {
-            offsetWidth = -window.innerWidth
-            opacity = 0
-          }
-        }
-        const time = 300
-        this.$refs.lyricList.$el.style[transform] = `translate3d(${offsetWidth}px,0,0)`
-        this.$refs.lyricList.$el.style[transitionDuration] = `${time}ms`
-        this.$refs.middleL.style.opacity = opacity
-        this.$refs.middleL.style[transitionDuration] = `${time}ms`
-        this.touch.initiated = false
-      },
-      onProgressBarChange(percent) {
-        // 根据百分比，计算出要修改到的播放时间
-        const currentTime = this.currentSong.duration * percent
-        // 设置播放时间，在这里真正地改变了歌曲进度
-        this.$refs.audio.currentTime = currentTime
-        // 修改进度条左边的时间显示
-        this.currentTime = currentTime
-        // 即使歌曲正在暂停，也会切换到指定进度开始播放
-        if (!this.playing) {
-          this.togglePlaying()
-        }
-        if (this.currentLyric) {
-          this.currentLyric.seek(currentTime * 1000)
-        }
-      },
-      onProgressBarChanging(percent) {
-        let time = this.currentSong.duration * percent
-        time = time | 0
-        let minute = time / 60 | 0
-        let second = 0
-        let len = (time % 60).toString().length
-        if (len < 2) {
-          second = '0' + (time % 60)
-        } else {
-          second = (time % 60).toString()
-        }
-        this.currentTime = `${minute}:${second}`
-      },
-      _getSongDuration() {
-        let time = this.currentSong.duration
-        time = time | 0
-        let minute = time / 60 | 0
-        let second = 0
-        let len = (time % 60).toString().length
-        if (len < 2) {
-          second = '0' + (time % 60)
-        } else {
-          second = (time % 60).toString()
-        }
-        this.songDuration = `${minute}:${second}`
-      },
-      updateTime() { // 获取当前播放到的时间，赋值给data中的currentTime
-        let time = this.$refs.audio.currentTime
-        time = time | 0 // 向下取整的技巧性写法
-        let minute = time / 60 | 0 // 获取分钟数
-        // 下面获取秒数，因为秒数为个位数时，要在前面加0
-        let second = 0
-        let len = (time % 60).toString().length
-        if (len < 2) {
-          second = '0' + (time % 60) // 利用字符串和数字相加，自动转换类型
-        } else {
-          second = (time % 60).toString()
-        }
-        this.currentTime = `${minute}:${second}`
-      },
-      back() { // 控制播放器收起
+      back () {
         this.setFullScreen(false)
       },
-      open() { // 控制播放器全面打开
+      open () {
         this.setFullScreen(true)
       },
-      next() {
+      enter (el, done) {
+        const { x, y, scale } = this._getPosAndScale()
+
+        let animation = {
+          0: {
+            transform: `translate3d(${x}px,${y}px,0) scale(${scale})`
+          },
+          60: {
+            transform: `translate3d(0,0,0) scale(1.1)`
+          },
+          100: {
+            transform: `translate3d(0,0,0) scale(1)`
+          }
+        }
+
+        animations.registerAnimation({
+          name: 'move',
+          animation,
+          presets: {
+            duration: 400,
+            easing: 'linear'
+          }
+        })
+
+        animations.runAnimation(this.$refs.cdWrapper, 'move', done)
+      },
+      afterEnter () {
+        animations.unregisterAnimation('move')
+        this.$refs.cdWrapper.style.animation = ''
+      },
+      leave (el, done) {
+        this.$refs.cdWrapper.style.transition = 'all 0.4s'
+        const { x, y, scale } = this._getPosAndScale()
+        this.$refs.cdWrapper.style[transform] = `translate3d(${x}px,${y}px,0) scale(${scale})`
+        const timer = setTimeout(done, 400)
+        this.$refs.cdWrapper.addEventListener('transitionend', () => {
+          clearTimeout(timer)
+          done()
+        })
+      },
+      afterLeave () {
+        this.$refs.cdWrapper.style.transition = ''
+        this.$refs.cdWrapper.style[transform] = ''
+      },
+      togglePlaying () {
         if (!this.songReady) {
           return
-        } // 歌曲还没有准备好的时候，就return掉
-        let index = this.currentIndex + 1
-        if (index === this.playlist.length) { // 当是最后一首歌的时候
-          index = 0 // 从播放列表第一首，重新开始
         }
-        this.setCurrentIndex(index) // setCurrentIndex使用mutation提交
-        if (!this.playing) { // 如果播放状态是暂停，我们就切换播放状态
-          this.togglePlaying()
+        this.setPlayingState(!this.playing)
+        if (this.currentLyric) {
+          this.currentLyric.togglePlay()
         }
-        this.songReady = false // 执行完点击，将标志位置为false
       },
       end () {
         this.currentTime = 0
@@ -394,21 +241,41 @@
           this.currentLyric.seek(0)
         }
       },
-      prev() {
+      next () {
         if (!this.songReady) {
           return
-        } // 歌曲还没有准备好的时候，就return掉
-        let index = this.currentIndex - 1
-        if (index === -1) { // 当是第一首的时候
-          index = this.playlist.length - 1 // 播放最后一首,记得减一
         }
-        this.setCurrentIndex(index)
-        if (!this.playing) { // 如果播放状态是暂停，我们就切换播放状态
-          this.togglePlaying()
+        if (this.playlist.length === 1) {
+          this.loop()
+        } else {
+          let index = this.currentIndex + 1
+          if (index === this.playlist.length) {
+            index = 0
+          }
+          this.setCurrentIndex(index)
+          if (!this.playing) {
+            this.togglePlaying()
+          }
         }
-        this.songReady = false
       },
-      ready() { // 歌曲准备完毕，将标志位置为true
+      prev () {
+        if (!this.songReady) {
+          return
+        }
+        if (this.playlist.length === 1) {
+          this.loop()
+        } else {
+          let index = this.currentIndex - 1
+          if (index === -1) {
+            index = this.playlist.length - 1
+          }
+          this.setCurrentIndex(index)
+          if (!this.playing) {
+            this.togglePlaying()
+          }
+        }
+      },
+      ready () {
         clearTimeout(this.timer)
         // 监听 playing 这个事件可以确保慢网速或者快速切换歌曲导致的 DOM Exception
         this.songReady = true
@@ -426,62 +293,140 @@
         }
       },
       error () {
+        clearTimeout(this.timer)
         this.songReady = true
       },
-      enter (el, done) {
-        const { x, y, scale } = this._getPosAndScale()
-
-        Velocity(this.$refs.cdWrapper,{
-          translateX: `${x}px`, // 注意这里的写法“translateX”，是特殊的
-          translateY: `${y}px`, // 这里写“translate3d是不行的，根本没效果
-          scale: `${scale}`
-        },{
-          duration: 0, // 这里写0，是动画的起始位置
-          easing: "linear"
-        }) // 本来动画起始位置是要在beforeEnter钩子规定的，但是这样也可以
-
-        Velocity(this.$refs.cdWrapper,{
-          translateX: "0px",
-          translateY: "0px",
-          scale: "1.1"
-        },{
-          duration: 240,
-          easing: "linear",
-        })
-
-        Velocity(this.$refs.cdWrapper,{
-          translateX: "0px",
-          translateY: "0px",
-          scale: "1"
-        },{
-          duration: 160,
-          easing: "linear",
-          complete: () => {
-            done() // 记得在动画的最后调用done回调，才会进入下一个钩子函数
+      updateTime (e) {
+        this.currentTime = e.target.currentTime
+      },
+      format (interval) {
+        interval = interval | 0
+        const minute = interval / 60 | 0
+        const second = this._pad(interval % 60)
+        return `${minute}:${second}`
+      },
+      onProgressBarChanging (percent) {
+        this.currentTime = this.currentSong.duration * percent
+        if (this.currentLyric) {
+          this.currentLyric.seek(this.currentTime * 1000)
+        }
+      },
+      onProgressBarChange (percent) {
+        const currentTime = this.currentSong.duration * percent
+        this.currentTime = this.$refs.audio.currentTime = currentTime
+        if (this.currentLyric) {
+          this.currentLyric.seek(currentTime * 1000)
+        }
+        if (!this.playing) {
+          this.togglePlaying()
+        }
+      },
+      getLyric () {
+        this.currentSong.getLyric().then((lyric) => {
+          if (this.currentSong.lyric !== lyric) {
+            return
           }
+          this.currentLyric = new Lyric(lyric, this.handleLyric)
+          this.isPureMusic = !this.currentLyric.lines.length
+          if (this.isPureMusic) {
+            this.pureMusicLyric = this.currentLyric.lrc.replace(timeExp, '').trim()
+            this.playingLyric = this.pureMusicLyric
+          } else {
+            if (this.playing && this.canLyricPlay) {
+              // 这个时候有可能用户已经播放了歌曲，要切到对应位置
+              this.currentLyric.seek(this.currentTime * 1000)
+            }
+          }
+        }).catch(() => {
+          this.currentLyric = null
+          this.playingLyric = ''
+          this.currentLineNum = 0
         })
       },
-      afterEnter () {
-        this.$refs.cdWrapper.style.animation = ''
-        this.$refs.cdWrapper.style[transform] = ''
+      handleLyric ({ lineNum, txt }) {
+        if (!this.$refs.lyricLine) {
+          return
+        }
+        this.currentLineNum = lineNum
+        if (lineNum > 5) {
+          let lineEl = this.$refs.lyricLine[lineNum - 5]
+          this.$refs.lyricList.scrollToElement(lineEl, 1000)
+        } else {
+          this.$refs.lyricList.scrollTo(0, 0, 1000)
+        }
+        this.playingLyric = txt
       },
-      leave (el, done) {
-        const { x, y, scale } = this._getPosAndScale()
-        
-        Velocity(this.$refs.cdWrapper, {
-          translateX: `${x}px`,
-          translateY: `${y}px`,
-          scale: `${scale}`
-        },
-        {
-          duration: 400,
-          easing: "linear",
-          complete: done
-        })
+      showPlaylist () {
+        this.$refs.playlist.show()
       },
-      afterLeave () {
-        this.$refs.cdWrapper.style.transition = ''
-        this.$refs.cdWrapper.style[transform] = ''
+      middleTouchStart (e) {
+        this.touch.initiated = true
+        // 用来判断是否是一次移动
+        this.touch.moved = false
+        const touch = e.touches[0]
+        this.touch.startX = touch.pageX
+        this.touch.startY = touch.pageY
+      },
+      middleTouchMove (e) {
+        if (!this.touch.initiated) {
+          return
+        }
+        const touch = e.touches[0]
+        const deltaX = touch.pageX - this.touch.startX
+        const deltaY = touch.pageY - this.touch.startY
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+          return
+        }
+        if (!this.touch.moved) {
+          this.touch.moved = true
+        }
+        const left = this.currentShow === 'cd' ? 0 : -window.innerWidth
+        const offsetWidth = Math.min(0, Math.max(-window.innerWidth, left + deltaX))
+        this.touch.percent = Math.abs(offsetWidth / window.innerWidth)
+        this.$refs.lyricList.$el.style[transform] = `translate3d(${offsetWidth}px,0,0)`
+        this.$refs.lyricList.$el.style[transitionDuration] = 0
+        this.$refs.middleL.style.opacity = 1 - this.touch.percent
+        this.$refs.middleL.style[transitionDuration] = 0
+      },
+      middleTouchEnd () {
+        if (!this.touch.moved) {
+          return
+        }
+        let offsetWidth
+        let opacity
+        if (this.currentShow === 'cd') {
+          if (this.touch.percent > 0.1) {
+            offsetWidth = -window.innerWidth
+            opacity = 0
+            this.currentShow = 'lyric'
+          } else {
+            offsetWidth = 0
+            opacity = 1
+          }
+        } else {
+          if (this.touch.percent < 0.9) {
+            offsetWidth = 0
+            this.currentShow = 'cd'
+            opacity = 1
+          } else {
+            offsetWidth = -window.innerWidth
+            opacity = 0
+          }
+        }
+        const time = 300
+        this.$refs.lyricList.$el.style[transform] = `translate3d(${offsetWidth}px,0,0)`
+        this.$refs.lyricList.$el.style[transitionDuration] = `${time}ms`
+        this.$refs.middleL.style.opacity = opacity
+        this.$refs.middleL.style[transitionDuration] = `${time}ms`
+        this.touch.initiated = false
+      },
+      _pad (num, n = 2) {
+        let len = num.toString().length
+        while (len < n) {
+          num = '0' + num
+          len++
+        }
+        return num
       },
       _getPosAndScale () {
         const targetWidth = 40
@@ -498,32 +443,84 @@
           scale
         }
       },
-      togglePlaying() {
-        if (!this.songReady) {
+      /**
+       * 计算内层Image的transform，并同步到外层容器
+       * @param wrapper
+       * @param inner
+       */
+      syncWrapperTransform (wrapper, inner) {
+        if (!this.$refs[wrapper]) {
           return
         }
-        this.setPlayingState(!this.playing)
-        if (this.currentLyric) {
-          this.currentLyric.togglePlay()
-        }
+        let imageWrapper = this.$refs[wrapper]
+        let image = this.$refs[inner]
+        let wTransform = getComputedStyle(imageWrapper)[transform]
+        let iTransform = getComputedStyle(image)[transform]
+        imageWrapper.style[transform] = wTransform === 'none' ? iTransform : iTransform.concat(' ', wTransform)
       },
       ...mapMutations({
-        setPlayMode: 'SET_PLAY_MODE',
-        setPlaylist: 'SET_PLAYLIST',
-        setFullScreen: 'SET_FULL_SCREEN',
-        setPlayingState: 'SET_PLAYING_STATE',
-        setCurrentIndex: 'SET_CURRENT_INDEX'
+        setFullScreen: 'SET_FULL_SCREEN'
       }),
       ...mapActions([
         'savePlayHistory'
       ])
     },
+    watch: {
+      currentSong (newSong, oldSong) {
+        if (!newSong.id || !newSong.url || newSong.id === oldSong.id) {
+          return
+        }
+        this.songReady = false
+        this.canLyricPlay = false
+        if (this.currentLyric) {
+          this.currentLyric.stop()
+          // 重置为null
+          this.currentLyric = null
+          this.currentTime = 0
+          this.playingLyric = ''
+          this.currentLineNum = 0
+        }
+        this.$refs.audio.src = newSong.url
+        this.$refs.audio.play()
+        // 若歌曲 5s 未播放，则认为超时，修改状态确保可以切换歌曲。
+        clearTimeout(this.timer)
+        this.timer = setTimeout(() => {
+          this.songReady = true
+        }, 5000)
+        this.getLyric()
+      },
+      playing (newPlaying) {
+        if (!this.songReady) {
+          return
+        }
+        const audio = this.$refs.audio
+        this.$nextTick(() => {
+          newPlaying ? audio.play() : audio.pause()
+        })
+        if (!newPlaying) {
+          if (this.fullScreen) {
+            this.syncWrapperTransform('imageWrapper', 'image')
+          } else {
+            this.syncWrapperTransform('miniWrapper', 'miniImage')
+          }
+        }
+      },
+      fullScreen (newVal) {
+        if (newVal) {
+          setTimeout(() => {
+            this.$refs.lyricList.refresh()
+            this.$refs.progressBar.setProgressOffset(this.percent)
+          }, 20)
+        }
+      }
+    },
     components: {
       ProgressBar,
       ProgressCircle,
-      Scroll
+      Scroll,
+      Playlist
     }
-  };
+  }
 </script>
 
 <style scoped lang="stylus" rel="stylesheet/stylus">
@@ -740,7 +737,7 @@
           bottom: 2px
           height: 100%
           width: 100%
-          border-bottom: 3px solid red
+          border-bottom: 3px solid rgba(255,220,220,0)
           border-radius: 50%
           img
             border-radius: 50%
@@ -772,10 +769,10 @@
           font-size: 30px
           color: #f9eaea
         .icon-mini
-          font-size: 32px
+          font-size: 38px
           position: absolute
-          right: -2px
-          top: 6px
+          right: 1px
+          top: -3px
 
   @keyframes rotate
     0%
