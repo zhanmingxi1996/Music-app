@@ -22,7 +22,7 @@
     color: $color-theme
     font-size: 0
     background-image: url(heard-bg.png)
-    border-1px(rgba(7, 17, 27, 0.2))
+    border-1px(rgba(7, 17, 27, 0.1))
     .text
       display: inline-block
       vertical-align: top
