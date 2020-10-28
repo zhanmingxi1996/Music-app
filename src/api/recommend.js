@@ -4,8 +4,8 @@ import axios from 'axios'
 const debug = process.env.NODE_ENV !== 'production'
 
 export function getRecommend () {
-  // 线上环境地址，同学们根据自己的需要配置修改
-  const url = debug ? '/api/getTopBanner' : 'http://ustbhuangyi.com/music/api/getTopBanner'
+  // 线上环境地址，根据实际上线配置修改
+  const url = debug ? '/api/getTopBanner' : 'http://xxx.com/music/api/getTopBanner'
 
   const data = Object.assign({}, commonParams, {
     platform: 'yqq.json',
@@ -47,8 +47,8 @@ export function getRecommend () {
 }
 
 export function getDiscList () {
-  // 线上环境地址，同学们根据自己的需要配置修改
-  const url = debug ? '/api/getDiscList' : 'http://ustbhuangyi.com/music/api/getDiscList'
+  // 线上环境地址，根据实际上线配置修改
+  const url = debug ? '/api/getDiscList' : 'http://xxx.com/music/api/getDiscList'
 
   const data = Object.assign({}, commonParams, {
     platform: 'yqq',
@@ -70,7 +70,7 @@ export function getDiscList () {
 }
 
 export function getSongList (disstid) {
-  const url = debug ? '/api/getCdInfo' : 'http://ustbhuangyi.com/music/api/getCdInfo'
+  const url = debug ? '/api/getCdInfo' : 'http://xxx.com/music/api/getCdInfo'
 
   const data = Object.assign({}, commonParams, {
     disstid,
