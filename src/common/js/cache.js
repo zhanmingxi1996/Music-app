@@ -36,6 +36,7 @@ export function saveSearch (query) {
     return item === query
   }, SEARCH_MAX_LEN)
   storage.set(SEARCH_KEY, searches)
+  console.log(searches)
   return searches
 }
 
