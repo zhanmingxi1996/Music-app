@@ -39,7 +39,6 @@
 
   .progress-circle
     position: relative
-    right: 13px
     circle
       stroke-width: 10px
       transform-origin: center

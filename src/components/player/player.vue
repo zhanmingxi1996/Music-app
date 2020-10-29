@@ -28,7 +28,7 @@
                 <img ref="image" :class="cdCls" class="image" :src="currentSong.image">
               </div>
             </div>
-            <div class="playing-lyric-wrapper">
+            <div class="playing-lyric-wrapper" v-show="true">
               <div class="playing-lyric">{{playingLyric}}</div>
             </div>
           </div>
@@ -93,7 +93,7 @@
           <p class="desc" v-html="currentSong.singer"></p>
         </div>
         <div class="control">
-          <progress-circle :radius="radius" :percent="percent">
+          <progress-circle v-show="true" :radius="radius" :percent="percent">
             <i @click.stop="togglePlaying" class="icon-mini" :class="miniIcon"></i>
           </progress-circle>
         </div>
@@ -647,9 +647,12 @@
               font-size: $font-size-medium
       .bottom
         position: absolute
-        bottom: 50px
+        bottom: 40px
         width: 100%
         .dot-wrapper
+          position: absolute
+          top: 2px
+          width: 100%
           text-align: center
           font-size: 0
           .dot
