@@ -647,11 +647,11 @@
               font-size: $font-size-medium
       .bottom
         position: absolute
-        bottom: 40px
+        bottom: 30px
         width: 100%
         .dot-wrapper
           position: absolute
-          top: 2px
+          top: 3px
           width: 100%
           text-align: center
           font-size: 0
@@ -765,17 +765,17 @@
           font-size: $font-size-small
           color: #fff
       .control
-        flex: 0 0 36px
+        flex: 0 0 30px
         width: 30px
         padding: 0 10px
         .icon-play-mini, .icon-pause-mini, .icon-playlist
           font-size: 30px
           color: #f9eaea
         .icon-mini
-          font-size: 38px
+          font-size: 36px
           position: absolute
-          right: 1px
-          top: -3px
+          right: -4px
+          top: -2px
 
   @keyframes rotate
     0%
