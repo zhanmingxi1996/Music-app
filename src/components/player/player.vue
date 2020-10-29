@@ -772,7 +772,7 @@
           font-size: 30px
           color: #f9eaea
         .icon-mini
-          font-size: 36px
+          font-size: 35px
           position: absolute
           right: -4px
           top: -2px

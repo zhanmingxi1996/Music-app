@@ -40,7 +40,7 @@
   .progress-circle
     position: relative
     circle
-      stroke-width: 10px
+      stroke-width: 16px
       transform-origin: center
       &.progress-background
         transform: scale(0.9)
