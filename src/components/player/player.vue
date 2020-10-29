@@ -772,10 +772,10 @@
           font-size: 30px
           color: #f9eaea
         .icon-mini
-          font-size: 35px
+          font-size: 32px
           position: absolute
-          right: -4px
-          top: -2px
+          left: 0px
+          top: 0px
 
   @keyframes rotate
     0%
