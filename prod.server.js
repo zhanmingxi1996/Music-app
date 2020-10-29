@@ -1,12 +1,27 @@
-const express = require('express')
-const bodyParser = require('body-parser')
+var express = require('express')
+var compression = require('compression')
+var config = require('./config/index')
+var axios = require('axios')
+var bodyParser = require('body-parser')
+var cookieParser = require('cookie-parser')
+var csrf = require('xsrf')
 
-const app = express()
+var port = process.env.PORT || config.build.port
 
-const router = express.Router()
+var app = express()
 
-router.get('/getDiscList', function (req, res) {
-  const url = 'https://c.y.qq.com/splcloud/fcgi-bin/fcg_get_diss_by_tag.fcg'
+var csrfProtection = csrf({
+  cookie: true,
+  ignoreMethods: ['HEAD', 'OPTIONS'],
+  checkPathReg: /^\/api/
+})
+app.use(cookieParser())
+app.use(csrfProtection)
+
+var apiRoutes = express.Router()
+
+apiRoutes.get('/getDiscList', csrfProtection, function (req, res) {
+  var url = 'https://c.y.qq.com/splcloud/fcgi-bin/fcg_get_diss_by_tag.fcg'
   axios.get(url, {
     headers: {
       referer: 'https://c.y.qq.com/',
@@ -20,8 +35,8 @@ router.get('/getDiscList', function (req, res) {
   })
 })
 
-router.get('/getCdInfo', function (req, res) {
-  const url = 'https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg'
+apiRoutes.get('/getCdInfo', csrfProtection, function (req, res) {
+  var url = 'https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg'
   axios.get(url, {
     headers: {
       referer: 'https://c.y.qq.com/',
@@ -29,10 +44,10 @@ router.get('/getCdInfo', function (req, res) {
     },
     params: req.query
   }).then((response) => {
-    let ret = response.data
+    var ret = response.data
     if (typeof ret === 'string') {
-      const reg = /^\w+\(({.+})\)$/
-      const matches = ret.match(reg)
+      var reg = /^\w+\(({.+})\)$/
+      var matches = ret.match(reg)
       if (matches) {
         ret = JSON.parse(matches[1])
       }
@@ -43,8 +58,8 @@ router.get('/getCdInfo', function (req, res) {
   })
 })
 
-router.get('/lyric', function (req, res) {
-  const url = 'https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg'
+apiRoutes.get('/lyric', csrfProtection, function (req, res) {
+  var url = 'https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg'
 
   axios.get(url, {
     headers: {
@@ -53,10 +68,10 @@ router.get('/lyric', function (req, res) {
     },
     params: req.query
   }).then((response) => {
-    let ret = response.data
+    var ret = response.data
     if (typeof ret === 'string') {
-      const reg = /^\w+\(({.+})\)$/
-      const matches = ret.match(reg)
+      var reg = /^\w+\(({.+})\)$/
+      var matches = response.data.match(reg)
       if (matches) {
         ret = JSON.parse(matches[1])
       }
@@ -67,7 +82,7 @@ router.get('/lyric', function (req, res) {
   })
 })
 
-router.post('/getPurlUrl', bodyParser.json(), function (req, res) {
+apiRoutes.post('/getPurlUrl', bodyParser.json(), csrfProtection, function (req, res) {
   const url = 'https://u.y.qq.com/cgi-bin/musicu.fcg'
   axios.post(url, req.body, {
     headers: {
@@ -82,7 +97,7 @@ router.post('/getPurlUrl', bodyParser.json(), function (req, res) {
   })
 })
 
-router.get('/search', function (req, res) {
+apiRoutes.get('/search', csrfProtection, function (req, res) {
   const url = 'https://c.y.qq.com/soso/fcgi-bin/search_for_qq_cp'
   axios.get(url, {
     headers: {
@@ -97,7 +112,7 @@ router.get('/search', function (req, res) {
   })
 })
 
-router.get('/getTopBanner', function (req, res) {
+app.get('/api/getTopBanner', function (req, res) {
   const url = 'https://u.y.qq.com/cgi-bin/musicu.fcg'
   const jumpPrefix = 'https://y.qq.com/n/yqq/album/'
 
@@ -136,11 +151,26 @@ router.get('/getTopBanner', function (req, res) {
   })
 })
 
-app.use('/api', router)
+app.use('/api', apiRoutes)
+
+app.get('/', function (req, res, next) {
+  res.cookie('XSRF-TOKEN', req.csrfToken())
+  return next()
+})
+
+app.use(compression())
 
 app.use(express.static('./dist'))
 
-const port = process.env.PORT || 9000
+app.use(function (err, req, res, next) {
+  if (err.code !== 'EBADCSRFTOKEN') {
+    return next()
+  }
+
+  // handle CSRF token errors here
+  res.status(403)
+  res.send('<div>error</div>')
+})
 
 module.exports = app.listen(port, function (err) {
   if (err) {
